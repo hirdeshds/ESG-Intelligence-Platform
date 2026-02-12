@@ -359,10 +359,10 @@ async def basic_plan_predict(file: UploadFile = File(...)):
 
         
         response = {
-            "esg_score": esg_score,
+            "esg_score": float(esg_score),
             "risk_category": risk_category,
-            "risk_probability": risk_probability,
-            "environment_score": round(environment_score, 2),
+            "risk_probability": float(risk_probability),
+            "environment_score": float(round(environment_score, 2)),
             "emission_trend": emission_trend,
             "renewable_usage_status": renewable_status,
             "csr_growth": csr_growth,
@@ -373,3 +373,238 @@ async def basic_plan_predict(file: UploadFile = File(...)):
     
     except Exception as e:
         return {"error": f"Failed to process file: {str(e)}"}
+
+
+# ------------------- PREMIUM PLAN HELPERS -------------------
+
+def operational_agent_advanced(df: pd.DataFrame):
+    # environmental score using detailed metrics or E_Score
+    if not df.empty:
+        row = df.iloc[0]
+    else:
+        return 70.0, "Stable", None
+
+    env_score = calculate_environmental_score(row)
+
+    # carbon intensity (if revenue available)
+    carbon_intensity = None
+    if 'carbon_emissions' in row.index and 'Revenue' in row.index and row['Revenue'] != 0:
+        carbon_intensity = row['carbon_emissions'] / row['Revenue']
+
+    # trend slope over years based on carbon_emissions
+    trend_direction = "Stable"
+    forecast_next = None
+    if 'Year' in df.columns and 'carbon_emissions' in df.columns and len(df) >= 2:
+        temp = df[['Year', 'carbon_emissions']].dropna()
+        if len(temp) >= 2:
+            years = temp['Year'].astype(float).values.reshape(-1, 1)
+            emissions = temp['carbon_emissions'].astype(float).values
+            # linear regression for slope
+            from sklearn.linear_model import LinearRegression
+            lr = LinearRegression()
+            lr.fit(years, emissions)
+            slope = lr.coef_[0]
+            trend_direction = "Reducing" if slope < -0.01 else ("Increasing" if slope > 0.01 else "Stable")
+            # forecast next year
+            next_year = years.max() + 1
+            forecast_next = float(lr.predict([[next_year]])[0])
+
+    return env_score, trend_direction, forecast_next
+
+
+def financial_agent_advanced(df: pd.DataFrame):
+    csr_growth = None
+    csr_to_revenue = None
+    roi_estimate = None
+
+    if 'csr_spending' in df.columns and 'Year' in df.columns:
+        firm_data = df.sort_values('Year')
+        if len(firm_data) >= 2:
+            recent = firm_data.iloc[-1]['csr_spending']
+            previous = firm_data.iloc[-2]['csr_spending']
+            csr_growth = ((recent - previous) / previous * 100) if previous != 0 else 0
+
+    if 'csr_spending' in df.columns and 'Revenue' in df.columns:
+        total_csr = df['csr_spending'].sum()
+        total_rev = df['Revenue'].sum()
+        if total_rev != 0:
+            csr_to_revenue = total_csr / total_rev
+
+    # simplistic ROI: assume ROA or ROE exist
+    if 'ROA' in df.columns:
+        roi_estimate = df['ROA'].mean()
+    elif 'ROE' in df.columns:
+        roi_estimate = df['ROE'].mean()
+
+    # financial score combine available metrics into 0-100
+    scores = []
+    if csr_growth is not None:
+        scores.append(min(max(csr_growth, -100), 100))
+    if csr_to_revenue is not None:
+        scores.append(min(max(csr_to_revenue * 100, 0), 100))
+    if roi_estimate is not None:
+        scores.append(min(max(roi_estimate, 0), 100))
+
+    financial_score = float(np.mean(scores)) if scores else 50.0
+
+    return financial_score, csr_growth, roi_estimate
+
+
+def regulatory_agent(df: pd.DataFrame):
+    violations = []
+    if 'Board_Independence' in df.columns:
+        if df.iloc[0]['Board_Independence'] < 0.5:
+            violations.append("Board independence below threshold")
+    if 'renewable_energy_percent' in df.columns:
+        if df.iloc[0]['renewable_energy_percent'] < 20:
+            violations.append("Renewable energy usage below threshold")
+    if 'carbon_emissions' in df.columns:
+        if df.iloc[0]['carbon_emissions'] > 1000:
+            violations.append("Carbon emissions above threshold")
+
+    compliance_score = 100 - len(violations) * 33
+    if compliance_score < 0:
+        compliance_score = 0
+
+    return compliance_score, violations
+
+
+def risk_prediction_agent(final_score: float):
+    # reuse existing predict_risk with probability
+    return predict_risk(final_score)
+
+
+def anomaly_detection_agent(df: pd.DataFrame):
+    detected = False
+    reason = None
+
+    # IsolationForest on numeric columns
+    num = df.select_dtypes(include=["number"]).fillna(0)
+    if not num.empty and len(num) >= 2:
+        from sklearn.ensemble import IsolationForest
+        iso = IsolationForest(random_state=42, contamination=0.1)
+        preds = iso.fit_predict(num)
+        if preds[0] == -1:
+            detected = True
+            reason = "First row is an outlier in numeric metrics"
+
+    # also check yoy carbon emissions jump
+    if 'Year' in df.columns and 'carbon_emissions' in df.columns and len(df) >= 2:
+        temp = df.sort_values('Year')
+        recent = temp.iloc[-1]['carbon_emissions']
+        previous = temp.iloc[-2]['carbon_emissions']
+        if previous != 0:
+            change = (recent - previous) / previous * 100
+            if abs(change) > 30:
+                detected = True
+                reason = f"Carbon emissions changed by {change:.0f}% YoY"
+
+    return detected, reason
+
+
+def explainability_agent(df_features: pd.DataFrame):
+    if model is None:
+        return {"top_factors": [], "summary": "Model unavailable"}
+    try:
+        import shap
+        explainer = shap.TreeExplainer(model)
+        sv = explainer.shap_values(df_features)
+        # shap values may be a list or numpy array
+        if isinstance(sv, list) and len(sv) > 1:
+            sv = sv[1]
+        # convert 3D array (n_samples,n_features,n_classes) to 2D for class 1
+        if isinstance(sv, np.ndarray) and sv.ndim == 3:
+            # pick last class contributions
+            sv = sv[:, :, -1]
+        # now sv shape should be (n_samples, n_features)
+        shap_vals = sv[0]
+        abs_vals = np.abs(shap_vals)
+        idx = np.argsort(abs_vals)[::-1][:3]
+        top = []
+        for i in idx:
+            # ensure scalar index
+            if isinstance(i, (list, tuple, np.ndarray)):
+                i = int(i[0])
+            feature = df_features.columns[i]
+            impact = shap_vals[i]
+            # convert to scalar if array
+            try:
+                impact_val = float(impact)
+            except Exception:
+                impact_val = impact
+            if impact_val > 0:
+                top.append(f"High {feature} increased risk")
+            else:
+                top.append(f"{feature} mitigated risk")
+        summary = "Risk influenced mainly by " + ", ".join([f.split()[1] for f in top]) + "."
+        return {"top_factors": top, "summary": summary}
+    except Exception as e:
+        # capture error message for debugging
+        return {"top_factors": [], "summary": f"Explainability failed: {str(e)}"}
+
+
+# ------------------- PREMIUM PLAN ENDPOINT -------------------
+
+@app.post("/premium/predict")
+async def premium_plan_predict(file: UploadFile = File(...)):
+    # follow execution flow described in requirements
+    try:
+        contents = await file.read()
+        df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
+        if df.empty:
+            return {"error": "Uploaded CSV is empty"}
+
+        # basic validation
+        required = ['Firm_ID', 'Year']
+        if not all(col in df.columns for col in required):
+            return {"error": "CSV missing required columns"}
+
+        # 1. Operational agent
+        env_score, trend_dir, forecast = operational_agent_advanced(df)
+
+        # 2. Financial agent
+        fin_score, csr_growth, roi_est = financial_agent_advanced(df)
+
+        # 3. Regulatory agent
+        comp_score, violations = regulatory_agent(df)
+
+        # 4. Risk prediction
+        final_esg = (env_score + fin_score + comp_score) / 3
+        risk_score = final_esg
+        # determine category and probability
+        if model is not None:
+            prob = model.predict_proba([[final_esg]])[0]
+            pred = model.predict([[final_esg]])[0]
+            risk_cat = {0:"Low",1:"Medium",2:"High"}.get(int(pred), "Medium")
+            confidence = round(float(prob[pred]),2)
+        else:
+            # fallback heuristics
+            if final_esg >= 70:
+                risk_cat = "Low"
+                confidence = 0.15
+            elif final_esg >= 55:
+                risk_cat = "Medium"
+                confidence = 0.55
+            else:
+                risk_cat = "High"
+                confidence = 0.85
+
+        # 5. Anomaly detection
+        anomaly, reason = anomaly_detection_agent(df)
+
+        # 6. Explainability
+        features_df = pd.DataFrame([[final_esg]], columns=["final_esg_risk_score"])
+        explanation = explainability_agent(features_df)
+
+        response = {
+            "risk_analysis": {"score": float(risk_score), "category": risk_cat, "confidence": float(confidence)},
+            "trend_analysis": {"direction": trend_dir, "forecast_next_year": float(forecast) if forecast is not None else None},
+            "environmental_score": float(env_score),
+            "financial_score": float(fin_score),
+            "compliance": {"score": float(comp_score), "violations": violations},
+            "anomaly_detection": {"detected": anomaly, "reason": reason},
+            "explanation": explanation
+        }
+        return response
+    except Exception as e:
+        return {"error": f"Premium plan processing failed: {str(e)}"}

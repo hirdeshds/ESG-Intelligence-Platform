@@ -136,6 +136,45 @@ def test_with_minimal_data():
         print(f"❌ ERROR: {str(e)}")
 
 
+def test_premium_plan_endpoint():
+    """
+    Test script for PREMIUM PLAN API endpoint
+    """
+    API_URL_PREMIUM = "http://localhost:8000/premium/predict"
+    sample_data = {
+        'Firm_ID': ['PREM001'],
+        'Year': [2023],
+        'carbon_emissions': [900],
+        'Revenue': [12000],
+        'csr_spending': [800],
+        'ROA': [6],
+        'Board_Independence': [0.6],
+        'renewable_energy_percent': [45]
+    }
+    df = pd.DataFrame(sample_data)
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False)
+    csv_data = csv_buffer.getvalue()
+    files = {'file': ('premium.csv', io.BytesIO(csv_data.encode()), 'text/csv')}
+
+    print("\n\nTesting PREMIUM PLAN API Endpoint")
+    print("=" * 60)
+    try:
+        response = requests.post(API_URL_PREMIUM, files=files)
+        if response.status_code == 200:
+            result = response.json()
+            print("✅ SUCCESS - PREM API Response:")
+            print(result)
+            return result
+        else:
+            print(f"❌ Error: Status Code {response.status_code}")
+            print(f"Response: {response.text}")
+            return None
+    except Exception as e:
+        print(f"❌ ERROR: {str(e)}")
+        return None
+
+
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("BASIC PLAN API - Test Suite")
@@ -146,6 +185,9 @@ if __name__ == "__main__":
     
     # Test 2: Minimal data
     result2 = test_with_minimal_data()
+    
+    # Test 3: Premium plan
+    result3 = test_premium_plan_endpoint()
     
     print("\n" + "="*60)
     print("Tests Complete!")
