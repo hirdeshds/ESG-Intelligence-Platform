@@ -1,0 +1,1 @@
+{"risk_analysis":{"score":78.33333333333333,"category":"Medium","confidence":1.0},"trend_analysis":{"direction":"Stable","forecast_next_year":null},"compliance":{"score":100,"violations":[]},"anomaly_detection":{"detected":false,"reason":null},"explanation":{"top_factors":[],"summary":"index 1 is out of bounds for axis 0 with size 1"}}

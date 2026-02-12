@@ -1,0 +1,24 @@
+Intelligent ESG Scoring System for Enterprise Decision-Making.
+
+The system monitors ESG compliance in real time.
+It predicts sustainability risks.
+It provides explainable ESG performance insights.
+
+Multi-Agent Architecture includes:
+Operational Agent
+Financial Agent
+Regulatory Agent
+Risk Agent
+Dashboard Agent
+
+Regulatory Intelligence includes:
+SEBI BRSR
+GRI
+EU CSRD
+
+Impact:
+Proactive ESG Risk Management
+Continuous Compliance Monitoring
+Higher Transparency
+Reduced Penalties
+Better Strategic Decision-Making
