@@ -1,54 +1,80 @@
-# import pandas as pd
-# import joblib
+from pathlib import Path
 
-# def run_agent7(input_path, output_path):
-#     df = pd.read_csv(input_path)
-
-#     model = joblib.load("models/risk_model.pkl")
-
-#     feature_importance = model.feature_importances_
-
-#     explanation = f"""
-#     Risk influenced mainly by:
-#     ESG_Score Importance: {round(feature_importance[0]*100,2)}%
-#     """
-
-#     df["explanation"] = explanation
-
-#     df.to_csv(output_path, index=False)
-
-#     return df
-import shap
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-model=joblib.load("models/risk_model.pkl")
-df=pd.read_csv(r"C:\\Users\\Mahek Bhatia\\Desktop\\ESG-Monitoring-System\\outputs\\agent4_final_output.csv")
+
+try:
+    import shap
+except ImportError:
+    shap = None
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+MODEL_PATH = BASE_DIR / "models" / "risk_model.pkl"
+DEFAULT_INPUT_FILE = BASE_DIR / "outputs" / "agent4_final_output.csv"
+
+
 def generate_explanation(df, model):
-
     explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(df[model.feature_names_in_])[1]
+    feature_names = list(getattr(model, "feature_names_in_", []))
+    if not feature_names:
+        return {
+            "top_risk_factors": [],
+            "summary": "Model does not expose feature names for SHAP explanations.",
+        }
 
-    contributions = shap_values[0]
-    feature_names = model.feature_names_in_
+    shap_values = explainer.shap_values(df[feature_names])
+    if isinstance(shap_values, list):
+        shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+        contributions = shap_values[0]
+    elif isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
+        # Newer SHAP versions may return (samples, features, classes).
+        contributions = shap_values[0, :, -1]
+    else:
+        contributions = shap_values[0]
 
     sorted_idx = np.argsort(np.abs(contributions))[::-1]
 
     top_factors = []
-
     for idx in sorted_idx[:3]:
         feature = feature_names[idx]
         impact = contributions[idx]
-
         if impact > 0:
             text = f"High {feature} increased ESG risk."
         else:
             text = f"{feature} helped reduce ESG risk."
-
         top_factors.append(text)
 
     return {
         "top_risk_factors": top_factors,
-        "summary": "Risk score influenced mainly by the above ESG factors."
+        "summary": "Risk score influenced mainly by the above ESG factors.",
     }
 
+
+def run_agent5(input_path=None):
+    if shap is None:
+        return {"error": "Missing dependency: shap."}
+    if not MODEL_PATH.exists():
+        return {"error": f"Model file not found: {MODEL_PATH}"}
+
+    source = Path(input_path) if input_path else DEFAULT_INPUT_FILE
+    if not source.exists():
+        return {"error": f"Input file not found: {source}. Run Agent 4 first."}
+
+    try:
+        model = joblib.load(MODEL_PATH)
+        df = pd.read_csv(source)
+        feature_names = list(getattr(model, "feature_names_in_", []))
+        if not feature_names:
+            return {"error": "Loaded model does not expose feature_names_in_."}
+
+        missing_features = [name for name in feature_names if name not in df.columns]
+        if missing_features:
+            return {
+                "error": "Agent 5 failed: missing model feature columns in input data: "
+                + ", ".join(missing_features)
+            }
+
+        return generate_explanation(df, model)
+    except Exception as exc:
+        return {"error": f"Agent 5 failed: {exc}"}

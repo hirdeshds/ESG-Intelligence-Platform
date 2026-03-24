@@ -1,26 +1,46 @@
 import os
+from pathlib import Path
+
 import pandas as pd
-from sqlalchemy import create_engine, inspect
+
+try:
+    from sqlalchemy import create_engine, inspect
+except ImportError:  # Optional until the sync endpoint is used with a real DB.
+    create_engine = None
+    inspect = None
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-def run_agent1(user_mapping, output_path):
+BASE_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_OUTPUT_DIR = BASE_DIR / "outputs"
+DEFAULT_SAMPLE_CSV = BASE_DIR / "csv files" / "basic_sample.csv"
 
-    # 1. Database Connection
-    # Ensure COMPANY_DB_URL is set in your .env
-    DB_URL = os.getenv("COMPANY_DB_URL") 
-    engine = create_engine(DB_URL)
-    
+
+def run_agent1(user_mapping, output_path):
+    if create_engine is None or inspect is None:
+        return {
+            "status": "error",
+            "message": "Missing dependency: sqlalchemy. Install project requirements to use database sync.",
+        }
+
+    db_url = os.getenv("COMPANY_DB_URL")
+    if not db_url:
+        return {
+            "status": "error",
+            "message": "COMPANY_DB_URL is not set.",
+        }
+
+    engine = create_engine(db_url)
+
     try:
-        # 2. VALIDATION: Check if the user's typed column names actually exist
         inspector = inspect(engine)
-        db_columns = [col['name'] for col in inspector.get_columns(user_mapping['table'])]
-        
-        # Check all mapped columns against the real database schema
-        required_keys = [ 'year_col', 'ind_col', 'env_col', 'soc_col', 'gov_col', 'board_col']
+        db_columns = [col["name"] for col in inspector.get_columns(user_mapping["table"])]
+
+        required_keys = ["year_col", "ind_col", "env_col", "soc_col", "gov_col", "board_col"]
         missing_columns = []
-        
+
         for key in required_keys:
             col_name = user_mapping[key]
             if col_name not in db_columns:
@@ -30,13 +50,11 @@ def run_agent1(user_mapping, output_path):
             return {
                 "status": "error",
                 "message": f"Mapping failed. The following columns do not exist in the database: {', '.join(missing_columns)}",
-                "available_columns": db_columns
+                "available_columns": db_columns,
             }
 
-        # 3. SQL ALIASING: Translating the database names into your project names
-        # This ensures the CSV always has 'E_Score', 'S_Score', etc.
         query = f"""
-        SELECT 
+        SELECT
             {user_mapping['year_col']} AS Year,
             {user_mapping['ind_col']} AS Industry_Type,
             {user_mapping['env_col']} AS E_Score,
@@ -46,41 +64,50 @@ def run_agent1(user_mapping, output_path):
         FROM {user_mapping['table']}
         """
 
-        print(f"Fetching and mapping data from {user_mapping['table']}...")
         df = pd.read_sql(query, engine)
-
-        # 4. DATA CLEANING (Your Original Logic)
         df = df.dropna().reset_index(drop=True)
 
-        # 5. SAVE TO CSV
-        os.makedirs(output_path, exist_ok=True)
-        output_file = os.path.join(output_path, "agent1_operational_output.csv")
+        output_dir = Path(output_path)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / "agent1_operational_output.csv"
         df.to_csv(output_file, index=False)
-        
+
         return {
-            "status": "success", 
+            "status": "success",
             "message": "Data successfully fetched and mapped",
-            "file_path": output_file
+            "file_path": str(output_file),
         }
 
-    except Exception as e:
+    except Exception as exc:
         return {
-            "status": "error", 
-            "message": f"System Error: {str(e)}"
+            "status": "error",
+            "message": f"System Error: {exc}",
         }
 
-if __name__ == "__main__":
-    # Test case: User typed 'b' for environment, but database only has 'e'
-    form_data = {
-        "table": "firm_metrics",
-        "id_col": "Firm_ID",
-        "year_col": "Year",
-        "ind_col": "Industry_Type",
-        "env_col": "b",  
-        "soc_col": "S_Score",
-        "gov_col": "G_Score",
-        "board_col": "Board_Independence"
-    }
-    
-    result = run_agent1(form_data, "outputs")
-    print(result)
+
+def sync_and_clean_pipeline(sample_csv_path=None, output_dir=None):
+    input_csv = Path(sample_csv_path) if sample_csv_path else DEFAULT_SAMPLE_CSV
+    target_dir = Path(output_dir) if output_dir else DEFAULT_OUTPUT_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    if not input_csv.exists():
+        return {
+            "status": "error",
+            "message": f"Sample input file not found: {input_csv}",
+        }
+
+    try:
+        df = pd.read_csv(input_csv).dropna().reset_index(drop=True)
+        output_file = target_dir / "agent1_operational_output.csv"
+        df.to_csv(output_file, index=False)
+        return {
+            "status": "success",
+            "message": "Agent 1 completed successfully",
+            "file_path": str(output_file),
+            "rows_processed": int(len(df)),
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "message": f"Agent 1 failed: {exc}",
+        }
