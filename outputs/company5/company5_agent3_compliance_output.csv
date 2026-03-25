@@ -1,0 +1,5 @@
+Firm_ID,Year,Industry_Type,ESG_Score,E_Score,S_Score,G_Score,ROA,ROE,Net_Profit_Margin,Revenue,Operating_Cost,Firm_Size,Board_Independence,Innovation_Spending,financial_risk_score,E_Compliance,S_Compliance,G_Compliance,Overall_Compliance
+MFG0349,2023,Textile,66.93,75.2,59.36,66.25,6.54,17.87,9.63,226.76,226.76,1199.99,50.24,3.9,33,Compliant,Violation,Compliant,Non-Compliant
+MFG0349,2022,Textile,64.5,72.0,57.5,64.0,6.2,16.5,9.1,215.0,215.0,1150.0,48.5,3.7,33,Compliant,Violation,Compliant,Non-Compliant
+MFG0349,2021,Textile,62.1,69.5,55.0,61.8,5.9,15.2,8.5,200.0,200.0,1100.0,46.0,3.5,33,Compliant,Violation,Compliant,Non-Compliant
+MFG0349,2020,Textile,60.0,67.0,53.0,60.0,5.5,14.5,8.0,190.0,190.0,1050.0,44.5,3.3,33,Compliant,Violation,Compliant,Non-Compliant

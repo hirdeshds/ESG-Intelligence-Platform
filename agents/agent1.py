@@ -1,74 +1,69 @@
 import os
-import sys
+import json
 from pathlib import Path
-
-CURRENT_FILE = Path(__file__).resolve()
-PROJECT_ROOT = CURRENT_FILE.parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 import pandas as pd
-from dotenv import load_dotenv
 from pymongo import MongoClient
-from agents.output_paths import ENV_FILE, get_agent_output_path, get_company_name
+from dotenv import load_dotenv
 
+load_dotenv()
 
-def _build_result(status, message, **extra):
-    payload = {
-        "status": status,
-        "message": message,
-    }
-    payload.update(extra)
-    return payload
+BASE_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_OUTPUT_DIR = BASE_DIR / "outputs"
+CONFIG_DIR = BASE_DIR / "config"
 
+def run_explicit_agent1(company_id="company3", output_dir=None):
+    target_dir = Path(output_dir) if output_dir else DEFAULT_OUTPUT_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-def run_agent1(output_path=None):
-    load_dotenv(ENV_FILE, override=True)
-    db_name = get_company_name()
-    target = Path(output_path) if output_path else get_agent_output_path(
-        "agent1_operational_output",
-        company_name=db_name,
-    )
-    target.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Agent 1: Running explicit extraction for {company_id}...")
 
-    print("Agent 1: Fetching verified data from MongoDB...")
+    # 1. Load the exact mapping the client provided from the UI
+    mapping_file = CONFIG_DIR / f"{company_id}_mapping.json"
+    
+    if not mapping_file.exists():
+        return {"status": "error", "message": f"Mapping file missing for {company_id}. Client must complete UI setup first."}
 
+    with open(mapping_file, "r") as f:
+        client_mapping = json.load(f)
+
+    # 2. Connect to MongoDB
     uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    db_name = os.getenv("MONGO_DB_NAME", company_id)
     collection_name = os.getenv("MONGO_COLLECTION", "raw_firm_data")
-
+    
     try:
-        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        client.admin.command("ping")
-
+        client = MongoClient(uri)
         collection = client[db_name][collection_name]
-        raw_data = list(collection.find({}, {"_id": 0}))
 
+        # 3. Fetch ONLY the columns the client mapped
+        # client_mapping.values() contains their weird column names (like "environme")
+        columns_to_fetch = {"_id": 0}
+        for client_col_name in client_mapping.values():
+            columns_to_fetch[client_col_name] = 1
+
+        raw_data = list(collection.find({}, columns_to_fetch))
+        
         if not raw_data:
-            return _build_result(
-                "error",
-                f"No data found in {db_name} -> {collection_name}. Please check your database.",
-            )
+            return {"status": "error", "message": "No data found in the database."}
 
-        df = pd.DataFrame(raw_data).dropna().reset_index(drop=True)
-        df.to_csv(target, index=False)
+        df = pd.DataFrame(raw_data)
 
-        print(f"Success: {len(df)} records saved to {target}")
+        # 4. Translate columns to our Standard Format
+        # Pandas requires {OldName: NewName}, so we reverse the dictionary
+        rename_dict = {client_col: standard_col for standard_col, client_col in client_mapping.items()}
+        df = df.rename(columns=rename_dict)
 
-        return _build_result(
-            "success",
-            "Data successfully fetched from MongoDB.",
-            file_path=str(target),
-            rows_processed=len(df),
-            source_database=db_name,
-            source_collection=collection_name,
-        )
+        # 5. Clean and Save
+        df = df.dropna(how='all', subset=["E_Score", "ROA"]).reset_index(drop=True)
+        
+        output_file = target_dir / f"{company_id}_master.csv"
+        df.to_csv(output_file, index=False)
+        
+        print(f"Success! Standardized CSV created at {output_file}")
+        return {"status": "success", "file_path": str(output_file), "rows": len(df)}
+
     except Exception as exc:
-        return _build_result("error", f"Agent 1 failed: {exc}")
-
-
-def sync_and_clean_pipeline(output_path=None):
-    return run_agent1(output_path=output_path)
-
+        return {"status": "error", "message": f"Agent 1 failed: {exc}"}
 
 if __name__ == "__main__":
-    print(run_agent1())
+    run_explicit_agent1()
