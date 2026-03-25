@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from agents.output_paths import get_agent_output_path, get_company_name
 
 load_dotenv()
 
@@ -64,6 +65,45 @@ def run_explicit_agent1(company_id="company3", output_dir=None):
 
     except Exception as exc:
         return {"status": "error", "message": f"Agent 1 failed: {exc}"}
+
+
+def sync_and_clean_pipeline(company_id=None, output_dir=None):
+    company_name = get_company_name(company_id)
+    target_path = get_agent_output_path(
+        "agent1_operational_output",
+        company_name=company_name,
+    )
+
+    if target_path.exists():
+        try:
+            existing_df = pd.read_csv(target_path)
+            return {
+                "status": "success",
+                "file_path": str(target_path),
+                "rows": len(existing_df),
+                "message": "Existing operational output found and reused.",
+            }
+        except Exception:
+            pass
+
+    explicit_result = run_explicit_agent1(company_id=company_name, output_dir=output_dir)
+    if explicit_result.get("status") != "success":
+        return explicit_result
+
+    source_path = Path(explicit_result["file_path"])
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        df = pd.read_csv(source_path)
+        df.to_csv(target_path, index=False)
+        return {
+            "status": "success",
+            "file_path": str(target_path),
+            "rows": len(df),
+            "message": "Operational output generated successfully.",
+        }
+    except Exception as exc:
+        return {"status": "error", "message": f"Agent 1 failed while writing operational output: {exc}"}
 
 if __name__ == "__main__":
     run_explicit_agent1()
