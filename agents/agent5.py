@@ -51,13 +51,13 @@ def generate_explanation(df, model):
     }
 
 
-def run_agent5(input_path=None):
+def run_agent5(input_path=None, company_id=None):
     if shap is None:
         return {"error": "Missing dependency: shap."}
     if not MODEL_PATH.exists():
         return {"error": f"Model file not found: {MODEL_PATH}"}
 
-    company_name = get_company_name()
+    company_name = get_company_name(company_id)
     source = Path(input_path) if input_path else get_agent_output_path(
         "agent4_final_output",
         company_name=company_name,

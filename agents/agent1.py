@@ -38,6 +38,27 @@ def _candidate_db_names(company_id):
     return names
 
 
+def list_available_companies():
+    try:
+        client = _get_client()
+        db_name = os.getenv("MONGO_DB_NAME", "company_database")
+        records = list(
+            client[db_name]["company_info"].find(
+                {},
+                {
+                    "_id": 0,
+                    "firm_id": 1,
+                    "sector": 1,
+                    "Industry_Type": 1,
+                    "firm_size_employees": 1,
+                },
+            )
+        )
+        return sorted(records, key=lambda item: item.get("firm_id", ""))
+    except Exception as exc:
+        return {"error": f"Could not fetch companies from MongoDB: {exc}"}
+
+
 def _build_standard_frame(records):
     df = pd.DataFrame(records)
 
@@ -66,7 +87,11 @@ def _load_from_mapped_collection(db, company_id):
     for client_col_name in client_mapping.values():
         columns_to_fetch[client_col_name] = 1
 
-    raw_data = list(collection.find({}, columns_to_fetch))
+    query = {}
+    if company_id and company_id.upper() == company_id:
+        query = {"Firm_ID": company_id}
+
+    raw_data = list(collection.find(query, columns_to_fetch))
     if not raw_data:
         return None, f"No data found in collection '{collection_name}'."
 
@@ -81,11 +106,15 @@ def _load_from_mapped_collection(db, company_id):
     return df[REQUIRED_COLUMNS].copy(), None
 
 
-def _load_from_split_collections(db):
-    company_info = list(db["company_info"].find({}, {"_id": 0, "firm_id": 1, "sector": 1, "Industry_Type": 1}))
+def _load_from_split_collections(db, firm_id=None):
+    base_query = {"firm_id": firm_id} if firm_id else {}
+
+    company_info = list(
+        db["company_info"].find(base_query, {"_id": 0, "firm_id": 1, "sector": 1, "Industry_Type": 1})
+    )
     sustainability_logs = list(
         db["sustainability_logs"].find(
-            {},
+            base_query,
             {
                 "_id": 0,
                 "firm_id": 1,
@@ -102,7 +131,7 @@ def _load_from_split_collections(db):
     )
     finance_data = list(
         db["finance_data"].find(
-            {},
+            base_query,
             {
                 "_id": 0,
                 "firm_id": 1,
@@ -172,7 +201,7 @@ def run_explicit_agent1(company_id="company3", output_dir=None):
                 df = mapped_df
                 break
 
-            split_df, split_error = _load_from_split_collections(db)
+            split_df, split_error = _load_from_split_collections(db, firm_id=company_id)
             if split_df is not None:
                 df = split_df
                 break

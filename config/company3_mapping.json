@@ -1,0 +1,17 @@
+{
+  "Firm_ID": "Firm_ID",
+  "Year": "Year",
+  "Industry_Type": "Industry_Type",
+  "ESG_Score": "ESG_Score",
+  "E_Score": "E_Score",
+  "S_Score": "S_Score",
+  "G_Score": "G_Score",
+  "ROA": "ROA",
+  "ROE": "ROE",
+  "Net Profit Margin": "Net_Profit_Margin",
+  "Revenue": "Revenue",
+  "Operating_Cost": "Operating_Cost",
+  "Firm_Size": "Firm_Size",
+  "Board_Independence": "Board_Independence",
+  "Innovation_Spending": "Innovation_Spending"
+}

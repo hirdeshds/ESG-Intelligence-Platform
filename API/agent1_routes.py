@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from agents.agent1 import sync_and_clean_pipeline
+from agents.agent1 import list_available_companies, sync_and_clean_pipeline
 
 router = APIRouter(prefix="/agent1", tags=["Data Synchronization"])
 
@@ -17,3 +17,11 @@ def trigger_data_sync():
         raise HTTPException(status_code=500, detail=result["message"])
 
     return result
+
+
+@router.get("/companies")
+def get_available_companies():
+    result = list_available_companies()
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return {"status": "success", "companies": result}

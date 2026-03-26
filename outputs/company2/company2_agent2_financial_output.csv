@@ -1,6 +1,0 @@
-Firm_ID,Year,Industry_Type,E_Score,S_Score,G_Score,Board_Independence,financial_risk_score,E_Compliance,S_Compliance,G_Compliance,Overall_Compliance,final_esg_risk_score,alert_level,ai_explanation
-MFG0103,2023,Pharmaceuticals,71.37,62.37,60.5,81.08,0,Compliant,Compliant,Compliant,Compliant,0,Low,All ESG factors are above thresholds; no significant risk detected.
-MFG0436,2021,Automobile,85.2,77.27,71.71,64.35,0,Compliant,Compliant,Compliant,Compliant,0,Low,High E_Score significantly reduced overall risk profile.
-MFG0349,2023,Textile,75.2,59.36,66.25,50.24,33,Compliant,Violation,Compliant,Non-Compliant,33,Warning,Low S_Score (59.36) increased risk; help from E_Score reduced total impact.
-MFG0271,2021,Heavy Machinery,100.79,71.56,51.24,87.54,33,Compliant,Compliant,Violation,Non-Compliant,33,Warning,Low G_Score (51.24) is the primary risk factor; Board Independence is stable.
-MFG0107,2019,Automobile,55.59,74.07,74.79,67.48,33,Violation,Compliant,Compliant,Non-Compliant,33,Warning,Environmental Score (55.59) below compliance threshold; requires intervention.

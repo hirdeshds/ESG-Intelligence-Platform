@@ -10,6 +10,17 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parents[1]
 CONFIG_DIR = BASE_DIR / "config"
 
+
+def _resolve_mapping_file(company_id):
+    candidates = [
+        CONFIG_DIR / f"{company_id}_mapping.json",
+        CONFIG_DIR / f"{company_id.replace('company', 'company_')}_mapping.json",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
 def run_agent1_premium(emit_callback, company_id="company3"):
     """
      AGENT 1 PRIME (PREMIUM): 
@@ -18,13 +29,13 @@ def run_agent1_premium(emit_callback, company_id="company3"):
     print(f" Agent 1 Premium: Real-time Listener active for {company_id}...")
 
     # 1. Load the Client Mapping
-    mapping_file = CONFIG_DIR / f"{company_id}_mapping.json"
-    if not mapping_file.exists():
-        print(f" Error: Mapping file missing for {company_id}")
-        return
-
-    with open(mapping_file, "r") as f:
-        client_mapping = json.load(f)
+    mapping_file = _resolve_mapping_file(company_id)
+    client_mapping = None
+    if mapping_file:
+        with open(mapping_file, "r", encoding="utf-8") as f:
+            client_mapping = json.load(f)
+    else:
+        print(f" Warning: Mapping file missing for {company_id}. Falling back to raw document passthrough.")
 
     # 2. Setup MongoDB Connection
     uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -47,9 +58,12 @@ def run_agent1_premium(emit_callback, company_id="company3"):
                     raw_doc = change['fullDocument']
                     
                     # 4. Standardize the Data
-                    standardized_data = {}
-                    for standard_col, client_col in client_mapping.items():
-                        standardized_data[standard_col] = raw_doc.get(client_col)
+                    if client_mapping:
+                        standardized_data = {}
+                        for standard_col, client_col in client_mapping.items():
+                            standardized_data[standard_col] = raw_doc.get(client_col)
+                    else:
+                        standardized_data = {k: v for k, v in raw_doc.items() if k != "_id"}
 
                     # Add Metadata
                     standardized_data["Firm_ID"] = raw_doc.get("Firm_ID", "Unknown")
@@ -63,8 +77,14 @@ def run_agent1_premium(emit_callback, company_id="company3"):
                     print(f" [Agent 1 Premium] Streamed data for: {standardized_data['Firm_ID']}")
 
         except Exception as e:
+            error_text = str(e)
+            if "only supported on replica sets" in error_text:
+                print(" Agent 1 Premium requires MongoDB replica set for Change Streams. Stopping listener.")
+                if 'client' in locals():
+                    client.close()
+                break
+
             print(f" Agent 1 Premium connection lost: {e}. Retrying in 5 seconds...")
-            # Connection close karke wait karenge
             if 'client' in locals():
                 client.close()
             time.sleep(5) 

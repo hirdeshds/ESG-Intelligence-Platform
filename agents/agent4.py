@@ -4,8 +4,8 @@ import pandas as pd
 from agents.output_paths import get_agent_output_path, get_company_name
 
 
-def run_agent4(input_path=None, output_path=None):
-    company_name = get_company_name()
+def run_agent4(input_path=None, output_path=None, company_id=None):
+    company_name = get_company_name(company_id)
     source = Path(input_path) if input_path else get_agent_output_path(
         "agent3_compliance_output",
         company_name=company_name,
@@ -24,6 +24,13 @@ def run_agent4(input_path=None, output_path=None):
     try:
         df = pd.read_csv(source)
 
+        # Normalize firm identifier across datasets.
+        if "Firm_ID" not in df.columns:
+            if "firm_id" in df.columns:
+                df = df.rename(columns={"firm_id": "Firm_ID"})
+            else:
+                df["Firm_ID"] = company_name
+
         df["final_esg_risk_score"] = (
             (df["E_Compliance"] == "Violation").astype(int)
             + (df["S_Compliance"] == "Violation").astype(int)
@@ -40,7 +47,11 @@ def run_agent4(input_path=None, output_path=None):
         df["alert_level"] = df["final_esg_risk_score"].apply(assign_alert)
 
         target.parent.mkdir(parents=True, exist_ok=True)
-        report = df[["Firm_ID", "Year", "Overall_Compliance", "final_esg_risk_score", "alert_level"]]
+        report_columns = ["Firm_ID", "Year", "Overall_Compliance", "final_esg_risk_score", "alert_level"]
+        for column in report_columns:
+            if column not in df.columns:
+                df[column] = pd.NA
+        report = df[report_columns]
         report.to_csv(target, index=False)
         return report.to_dict(orient="records")
     except Exception as exc:

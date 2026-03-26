@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parents[1]
 BASE_OUTPUT_DIR = BASE_DIR / "outputs"
 ENV_FILE = BASE_DIR / "config" / ".env"
-DEFAULT_COMPANY_NAME = "company3"
+DEFAULT_COMPANY_NAME = "company_database"
+DEFAULT_FIRM_ID = "TECH001"
 
 
 def reload_env():
@@ -17,7 +18,7 @@ def get_company_name(company_name=None):
     reload_env()
     if company_name:
         return company_name
-    return os.getenv("MONGO_DB_NAME", DEFAULT_COMPANY_NAME)
+    return os.getenv("MONGO_FIRM_ID") or os.getenv("MONGO_DB_NAME", DEFAULT_COMPANY_NAME)
 
 
 def get_company_output_dir(company_name=None, input_path=None):

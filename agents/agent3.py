@@ -13,13 +13,25 @@ def check_social(row):
 
 
 def check_governance(row):
-    if row["G_Score"] < 60 or row["Board_Independence"] < 0.5:
+    g_score = row.get("G_Score")
+
+    board_independence = row.get("Board_Independence")
+    if board_independence is None and "Board_Independence (%)" in row.index:
+        board_independence = row.get("Board_Independence (%)")
+
+    # Support both 0-1 and 0-100 scales, and tolerate missing values.
+    board_violation = False
+    if pd.notna(board_independence):
+        threshold = 50 if board_independence > 1 else 0.5
+        board_violation = board_independence < threshold
+
+    if pd.notna(g_score) and g_score < 60 or board_violation:
         return "Violation"
     return "Compliant"
 
 
-def run_agent3(input_path=None, output_path=None):
-    company_name = get_company_name()
+def run_agent3(input_path=None, output_path=None, company_id=None):
+    company_name = get_company_name(company_id)
     source = Path(input_path) if input_path else get_agent_output_path(
         "agent2_financial_output",
         company_name=company_name,

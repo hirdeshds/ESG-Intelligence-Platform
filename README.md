@@ -127,6 +127,21 @@ Subscription-based SaaS (monthly/yearly) with paid add-ons for customization and
 ### Technology Advantage
 A unified ESG platform combining live data ingestion, AI-based risk detection, and explainable insights.
 
+---
+
+## Deployment Notes
+
+Set these environment variables in your deployment platform before starting the API:
+
+```env
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/?appName=<app-name>
+MONGO_DB_NAME=company_database
+MONGO_FIRM_ID=TECH001
+MONGO_COLLECTION=raw_firm_data
+```
+
+The backend already reads `config/.env` locally through `python-dotenv`, and cloud deployments should provide the same keys as platform environment variables. Change `MONGO_FIRM_ID` to switch the active company without passing query parameters.
+
 
 
 
