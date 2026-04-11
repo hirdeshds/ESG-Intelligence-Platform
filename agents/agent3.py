@@ -8,7 +8,7 @@ def check_environment(row):
     return "Violation" if row["E_Score"] < 60 else "Compliant"
 
 
-def check_social(row):
+def check_social(row):_
     return "Violation" if row["S_Score"] < 60 else "Compliant"
 
 
