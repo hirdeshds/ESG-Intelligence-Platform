@@ -1,0 +1,11 @@
+Year,Industry_Type,E_Score,S_Score,G_Score,ROA,ROE,Net Profit Margin,Board_Independence,ESG_Score,financial_risk_score,E_Compliance,S_Compliance,G_Compliance,Overall_Compliance
+2014,Energy,94.1,53.9,82.0,8.0,19.3,20.7,87.5,76.67,33,Compliant,Violation,Compliant,Non-Compliant
+2015,Energy,59.2,60.8,89.7,15.6,10.1,15.6,59.8,69.9,33,Violation,Compliant,Compliant,Non-Compliant
+2016,Energy,60.8,68.8,79.0,13.6,14.9,7.9,55.3,69.53,0,Compliant,Compliant,Compliant,Compliant
+2017,Energy,40.3,72.1,71.4,16.2,20.0,7.6,50.4,61.27,33,Violation,Compliant,Compliant,Non-Compliant
+2018,Energy,76.8,66.9,96.0,10.4,16.9,5.0,84.8,79.9,0,Compliant,Compliant,Compliant,Compliant
+2019,Energy,82.9,63.8,89.8,4.1,19.2,16.8,62.6,78.83,0,Compliant,Compliant,Compliant,Compliant
+2020,Energy,81.5,63.2,68.3,16.4,7.3,20.8,70.1,71.0,0,Compliant,Compliant,Compliant,Compliant
+2021,Energy,60.9,69.9,87.6,7.7,6.9,20.5,67.5,72.8,0,Compliant,Compliant,Compliant,Compliant
+2022,Energy,47.4,83.0,70.8,14.1,7.1,17.2,68.8,67.07,33,Violation,Compliant,Compliant,Non-Compliant
+2023,Energy,79.6,77.7,77.5,17.4,24.5,9.1,91.5,78.27,0,Compliant,Compliant,Compliant,Compliant
