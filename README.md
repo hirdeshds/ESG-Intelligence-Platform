@@ -6,17 +6,17 @@ This repository provides a production-friendly backend service built with FastAP
 
 ## Table of Contents
 
-1. Executive Summary
-2. Core Architecture and Innovations
-3. System Design
-4. Technology Stack
-5. Installation and Operation
-6. API Endpoints
-7. Data and Output Lifecycle
-8. Folder Structure
-9. Deployment
-10. Security and Governance Notes
-11. Troubleshooting
+1. [Executive Summary](#executive-summary)
+2. [Core Architecture and Innovations](#core-architecture-and-innovations)
+3. [System Design](#system-design)
+4. [Technology Stack](#technology-stack)
+5. [Installation and Operation](#installation-and-operation)
+6. [API Endpoints](#api-endpoints)
+7. [Data and Output Lifecycle](#data-and-output-lifecycle)
+8. [Folder Structure](#folder-structure)
+9. [Deployment](#deployment)
+10. [Security and Governance Notes](#security-and-governance-notes)
+11. [Troubleshooting](#troubleshooting)
 
 ## Executive Summary
 
