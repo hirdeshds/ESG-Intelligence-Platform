@@ -10,3 +10,4 @@ requests
 python-dotenv
 pymongo
 python-socketio
+python-docx
